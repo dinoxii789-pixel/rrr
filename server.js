@@ -55,12 +55,12 @@ async function fetchCodes() {
 
     let codes = [];
 
-    $("h3").each((i, el) => {
-      const text = $(el).text().trim();
-      if (/^[A-Z0-9]{6,}$/.test(text)) {
-        codes.push(text);
-      }
-    });
+    $("div").each((i, el) => {
+  const text = $(el).text().trim();
+  if (/^[A-Z0-9]{6,}$/.test(text)) {
+    codes.push(text);
+  }
+});
 
     return [...new Set(codes)];
 
