@@ -1,4 +1,5 @@
 const express = require("express");
+const { chromium } = require("playwright");
 const cors = require("cors");
 const axios = require("axios");
 const http = require("http");
@@ -35,16 +36,33 @@ app.post("/save-token", (req, res) => {
 });
 
 async function fetchCodes() {
+  let browser;
+
   try {
-    const { data } = await axios.get(
-      "https://rov-crowdsourcing.pages.dev/app/codes",
-      {
-        headers: {
-          "User-Agent":
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120 Safari/537.36",
-        }
-      }
-    );
+    browser = await chromium.launch({
+      args: ["--no-sandbox", "--disable-setuid-sandbox"]
+    });
+
+    const page = await browser.newPage();
+
+    await page.goto("https://rov-crowdsourcing.pages.dev/app/codes", {
+      waitUntil: "networkidle",
+      timeout: 60000
+    });
+
+    const content = await page.content();
+
+    const matches = content.match(/[A-Z0-9]{8,}/g);
+
+    return [...new Set(matches || [])];
+
+  } catch (e) {
+    console.log("ERROR:", e.message);
+    return [];
+  } finally {
+    if (browser) await browser.close();
+  }
+}
 
     // 🔥 ดึงโค้ดจริงจากหน้าเว็บ
     const matches = data.match(/[A-Z0-9]{8,}/g);
