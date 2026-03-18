@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>ROV Code Alert 🔥</title>
+</head>
+
+<body style="background:#0b1a2a;color:white;text-align:center;padding:40px;">
+
+  <h1>🔥 ROV Code Alert</h1>
+  <button onclick="start()">🔔 เริ่ม</button>
+
+  <h2 id="code">รอรับโค้ด...</h2>
+
+  <!-- ⚠️ ใส่ URL Render ของนาย -->
+  <script src="https://YOUR-RENDER.onrender.com/socket.io/socket.io.js"></script>
+
+  <script>
+    let audio = new Audio("https://www.soundjay.com/buttons/sounds/button-3.mp3");
+
+    function start() {
+      Notification.requestPermission();
+
+      const socket = io("https://YOUR-RENDER.onrender.com");
+
+      socket.on("newCode", (code) => {
+        document.getElementById("code").innerText = code;
+
+        audio.play();
+
+        if (Notification.permission === "granted") {
+          new Notification("🔥 โค้ดใหม่!", { body: code });
+        }
+      });
+    }
+  </script>
+
+</body>
+</html>
