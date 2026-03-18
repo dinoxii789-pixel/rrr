@@ -34,39 +34,25 @@ app.post("/save-token", (req, res) => {
   res.sendStatus(200);
 });
 
-// 🔔 push
-async function sendPush(code) {
-  for (let token of userTokens) {
-    try {
-      await fetch("https://fcm.googleapis.com/fcm/send", {
-        method: "POST",
-        headers: {
-          "Authorization": "BN-tcElYBKbz8KPhiwGLjX3jb6VZcLD55s3Fkglr87RvKQ-lgyj-81K4BzIs1CA4E9fB9sLnPgxIo1QYlaBME8k",
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-          to: token,
-          notification: {
-            title: "🔥 โค้ดใหม่!",
-            body: code
-          }
-        })
-      });
-    } catch (e) {
-      console.log("Push error:", e.message);
-    }
-  }
-}
-
-// ✅ ดึงโค้ด (ใช้ API ตรง)
 async function fetchCodes() {
   try {
     const { data } = await axios.get(
-      "https://rov-crowdsourcing.pages.dev/api/codes"
+      "https://rov-crowdsourcing.pages.dev/app/codes",
+      {
+        headers: {
+          "User-Agent":
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120 Safari/537.36",
+        }
+      }
     );
-    return data;
+
+    // 🔥 ดึงโค้ดจริงจากหน้าเว็บ
+    const matches = data.match(/[A-Z0-9]{8,}/g);
+
+    return [...new Set(matches || [])];
+
   } catch (e) {
-    console.log("ERROR:", e.message);
+    console.log("ERROR:", e.response?.status || e.message);
     return [];
   }
 }
