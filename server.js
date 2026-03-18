@@ -1,7 +1,6 @@
 const express = require("express");
 const cors = require("cors");
 const axios = require("axios");
-const cheerio = require("cheerio");
 const http = require("http");
 const { Server } = require("socket.io");
 const fetch = require("node-fetch");
@@ -16,7 +15,7 @@ app.use(express.json());
 let lastCode = null;
 let userTokens = [];
 
-// ✅ หน้า root กัน Cannot GET /
+// ✅ หน้า root
 app.get("/", (req, res) => {
   res.json({
     status: "OK",
@@ -35,7 +34,7 @@ app.post("/save-token", (req, res) => {
   res.sendStatus(200);
 });
 
-// 🔔 ส่ง push
+// 🔔 push
 async function sendPush(code) {
   for (let token of userTokens) {
     try {
@@ -59,37 +58,22 @@ async function sendPush(code) {
   }
 }
 
-// ⚡ ดึงโค้ด (แก้ 403 + 429 แล้ว)
+// ✅ ดึงโค้ด (ใช้ API ตรง)
 async function fetchCodes() {
   try {
     const { data } = await axios.get(
       "https://rov-crowdsourcing.pages.dev/api/codes"
     );
-
-    // 👉 API จะได้ array ตรงๆ
     return data;
-
-   catch (e) {
+  } catch (e) {
     console.log("ERROR:", e.message);
     return [];
   }
 }
 
-    // 🔥 ใช้ regex ดึงโค้ด (โคตรชัวร์)
-    const matches = data.match(/[A-Z0-9]{6,}/g);
-    const codes = [...new Set(matches || [])];
-
-    return codes;
-
-  } catch (e) {
-    console.log("ERROR:", e.response?.status || e.message);
-    return [];
-  }
-}
-
-// 🔁 loop (ลด rate limit แล้ว)
-async function loop() {
-  const delay = Math.floor(Math.random() * 5000) + 8000; // 8-13 วิ
+// 🔁 loop
+function loop() {
+  const delay = Math.floor(Math.random() * 5000) + 8000;
 
   setTimeout(async () => {
     const codes = await fetchCodes();
@@ -104,7 +88,7 @@ async function loop() {
       sendPush(latest);
     }
 
-    loop(); // 🔁 วนต่อ
+    loop();
   }, delay);
 }
 
