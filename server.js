@@ -16,6 +16,15 @@ app.use(express.json());
 let lastCode = null;
 let userTokens = [];
 
+// ✅ หน้า root กัน Cannot GET /
+app.get("/", (req, res) => {
+  res.json({
+    status: "OK",
+    message: "🔥 ROV Shadow Notify API",
+    latestCode: lastCode || "ยังไม่มีโค้ด"
+  });
+});
+
 // 📲 รับ token
 app.post("/save-token", (req, res) => {
   const token = req.body.token;
@@ -29,61 +38,73 @@ app.post("/save-token", (req, res) => {
 // 🔔 ส่ง push
 async function sendPush(code) {
   for (let token of userTokens) {
-    await fetch("https://fcm.googleapis.com/fcm/send", {
-      method: "POST",
-      headers: {
-        "Authorization": "BN-tcElYBKbz8KPhiwGLjX3jb6VZcLD55s3Fkglr87RvKQ-lgyj-81K4BzIs1CA4E9fB9sLnPgxIo1QYlaBME8k",
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        to: token,
-        notification: {
-          title: "🔥 โค้ดใหม่!",
-          body: code
-        }
-      })
-    });
+    try {
+      await fetch("https://fcm.googleapis.com/fcm/send", {
+        method: "POST",
+        headers: {
+          "Authorization": "BN-tcElYBKbz8KPhiwGLjX3jb6VZcLD55s3Fkglr87RvKQ-lgyj-81K4BzIs1CA4E9fB9sLnPgxIo1QYlaBME8k",
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          to: token,
+          notification: {
+            title: "🔥 โค้ดใหม่!",
+            body: code
+          }
+        })
+      });
+    } catch (e) {
+      console.log("Push error:", e.message);
+    }
   }
 }
 
-// ⚡ ดึงโค้ดแบบเบา
+// ⚡ ดึงโค้ด (แก้ 403 + 429 แล้ว)
 async function fetchCodes() {
   try {
-    const { data } = await axios.get("https://rov-crowdsourcing.pages.dev/app/codes");
+    const { data } = await axios.get(
+      "https://rov-crowdsourcing.pages.dev/app/codes",
+      {
+        headers: {
+          "User-Agent":
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120 Safari/537.36",
+          "Accept-Language": "en-US,en;q=0.9"
+        }
+      }
+    );
 
-    const $ = cheerio.load(data);
+    // 🔥 ใช้ regex ดึงโค้ด (โคตรชัวร์)
+    const matches = data.match(/[A-Z0-9]{6,}/g);
+    const codes = [...new Set(matches || [])];
 
-    let codes = [];
-
-    $("div").each((i, el) => {
-  const text = $(el).text().trim();
-  if (/^[A-Z0-9]{6,}$/.test(text)) {
-    codes.push(text);
-  }
-});
-
-    return [...new Set(codes)];
+    return codes;
 
   } catch (e) {
-    console.log("ERROR:", e.message);
+    console.log("ERROR:", e.response?.status || e.message);
     return [];
   }
 }
 
-// 🔁 loop
-setInterval(async () => {
-  const codes = await fetchCodes();
-  const latest = codes[0];
+// 🔁 loop (ลด rate limit แล้ว)
+async function loop() {
+  const delay = Math.floor(Math.random() * 5000) + 8000; // 8-13 วิ
 
-  if (latest && latest !== lastCode) {
-    lastCode = latest;
+  setTimeout(async () => {
+    const codes = await fetchCodes();
+    const latest = codes[0];
 
-    console.log("🔥 NEW:", latest);
+    if (latest && latest !== lastCode) {
+      lastCode = latest;
 
-    io.emit("newCode", latest);
-    sendPush(latest);
-  }
-}, 3000);
+      console.log("🔥 NEW:", latest);
+
+      io.emit("newCode", latest);
+      sendPush(latest);
+    }
+
+    loop(); // 🔁 วนต่อ
+  }, delay);
+}
 
 // API
 app.get("/codes", (req, res) => {
@@ -94,4 +115,5 @@ const PORT = process.env.PORT || 3000;
 
 server.listen(PORT, () => {
   console.log("🔥 running on", PORT);
+  loop();
 });
