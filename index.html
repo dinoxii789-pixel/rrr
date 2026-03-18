@@ -17,7 +17,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-messaging-compat.js"></script>
 
 <!-- Socket -->
-<script src="https://YOUR-RENDER.onrender.com/socket.io/socket.io.js"></script>
+<script src="https://rrr-4d80.onrender.com/socket.io/socket.io.js"></script>
 
 <script>
 const firebaseConfig = {
@@ -52,7 +52,7 @@ function start() {
     }
   });
 
-  const socket = io("https://YOUR-RENDER.onrender.com");
+  const socket = io("https://rrr-4d80.onrender.com");
 
   socket.on("newCode", code => {
     document.getElementById("code").innerText = code;
