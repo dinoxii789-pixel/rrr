@@ -31,7 +31,7 @@ async function sendPush(code) {
     await fetch("https://fcm.googleapis.com/fcm/send", {
       method: "POST",
       headers: {
-        "Authorization": "key=YOUR_FIREBASE_SERVER_KEY",
+        "Authorization": "BN-tcElYBKbz8KPhiwGLjX3jb6VZcLD55s3Fkglr87RvKQ-lgyj-81K4BzIs1CA4E9fB9sLnPgxIo1QYlaBME8k",
         "Content-Type": "application/json"
       },
       body: JSON.stringify({
