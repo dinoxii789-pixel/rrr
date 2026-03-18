@@ -35,45 +35,29 @@ app.post("/save-token", (req, res) => {
   res.sendStatus(200);
 });
 
-async function fetchCodes() {
-  let browser;
+setInterval(async () => {
+    try {
+      await page.reload();
 
-  try {
-    browser = await chromium.launch({
-      args: ["--no-sandbox", "--disable-setuid-sandbox"]
-    });
+      const codes = await page.evaluate(() => {
+        const elements = document.querySelectorAll("h3");
 
-    const page = await browser.newPage();
+        let raw = Array.from(elements)
+          .map(el => el.innerText.trim());
 
-    await page.goto("https://rov-crowdsourcing.pages.dev/app/codes", {
-      waitUntil: "networkidle",
-      timeout: 60000
-    });
+        raw = raw.filter(text => /^[A-Z0-9]{6,}$/.test(text));
 
-    const content = await page.content();
+        return [...new Set(raw)];
+      });
 
-    const matches = content.match(/[A-Z0-9]{8,}/g);
+      const latest = codes[0];
 
-    return [...new Set(matches || [])];
+      if (latest && latest !== lastCode) {
+        lastCode = latest;
+        console.log("🔥 NEW CODE:", latest);
 
-  } catch (e) {
-    console.log("ERROR:", e.message);
-    return [];
-  } finally {
-    if (browser) await browser.close();
-  }
-}
-
-    // 🔥 ดึงโค้ดจริงจากหน้าเว็บ
-    const matches = data.match(/[A-Z0-9]{8,}/g);
-
-    return [...new Set(matches || [])];
-
-  } catch (e) {
-    console.log("ERROR:", e.response?.status || e.message);
-    return [];
-  }
-}
+        io.emit("newCode", latest); // 🚀 ส่ง realtime
+      }
 
 // 🔁 loop
 function loop() {
