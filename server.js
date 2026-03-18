@@ -1,43 +1,35 @@
 const express = require("express");
-const { chromium } = require("playwright");
 const cors = require("cors");
-const axios = require("axios");
 const http = require("http");
 const { Server } = require("socket.io");
-const fetch = require("node-fetch");
+const { chromium } = require("playwright");
 
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server, { cors: { origin: "*" } });
 
 app.use(cors());
-app.use(express.json());
 
 let lastCode = null;
-let userTokens = [];
 
-// ✅ หน้า root
-app.get("/", (req, res) => {
-  res.json({
-    status: "OK",
-    message: "🔥 ROV Shadow Notify API",
-    latestCode: lastCode || "ยังไม่มีโค้ด"
+async function startScraper() {
+  const browser = await chromium.launch({
+    headless: true,
+    args: ["--no-sandbox", "--disable-setuid-sandbox"]
   });
-});
 
-// 📲 รับ token
-app.post("/save-token", (req, res) => {
-  const token = req.body.token;
-  if (token && !userTokens.includes(token)) {
-    userTokens.push(token);
-    console.log("📲 Token:", token);
-  }
-  res.sendStatus(200);
-});
+  const page = await browser.newPage();
 
-setInterval(async () => {
+  await page.goto("https://rov-crowdsourcing.pages.dev/app/codes", {
+    waitUntil: "domcontentloaded",
+    timeout: 60000
+  });
+
+  console.log("✅ Scraper started");
+
+  setInterval(async () => {
     try {
-      await page.reload();
+      await page.reload({ waitUntil: "domcontentloaded" });
 
       const codes = await page.evaluate(() => {
         const elements = document.querySelectorAll("h3");
@@ -54,31 +46,25 @@ setInterval(async () => {
 
       if (latest && latest !== lastCode) {
         lastCode = latest;
+
         console.log("🔥 NEW CODE:", latest);
 
-        io.emit("newCode", latest); // 🚀 ส่ง realtime
+        io.emit("newCode", latest);
       }
 
-// 🔁 loop
-function loop() {
-  const delay = Math.floor(Math.random() * 5000) + 8000;
-
-  setTimeout(async () => {
-    const codes = await fetchCodes();
-    const latest = codes[0];
-
-    if (latest && latest !== lastCode) {
-      lastCode = latest;
-
-      console.log("🔥 NEW:", latest);
-
-      io.emit("newCode", latest);
-      sendPush(latest);
+    } catch (err) {
+      console.log("❌ ERROR:", err.message);
     }
-
-    loop();
-  }, delay);
+  }, 8000); // 🔥 เพิ่ม delay กันโดนบล็อก
 }
+
+// หน้า root (กัน Cannot GET /)
+app.get("/", (req, res) => {
+  res.json({
+    status: "OK",
+    latestCode: lastCode || "ยังไม่มีโค้ด"
+  });
+});
 
 // API
 app.get("/codes", (req, res) => {
@@ -87,7 +73,7 @@ app.get("/codes", (req, res) => {
 
 const PORT = process.env.PORT || 3000;
 
-server.listen(PORT, () => {
+server.listen(PORT, async () => {
   console.log("🔥 running on", PORT);
-  loop();
+  await startScraper();
 });
