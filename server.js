@@ -63,15 +63,17 @@ async function sendPush(code) {
 async function fetchCodes() {
   try {
     const { data } = await axios.get(
-      "https://rov-crowdsourcing.pages.dev/app/codes",
-      {
-        headers: {
-          "User-Agent":
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120 Safari/537.36",
-          "Accept-Language": "en-US,en;q=0.9"
-        }
-      }
+      "https://rov-crowdsourcing.pages.dev/api/codes"
     );
+
+    // 👉 API จะได้ array ตรงๆ
+    return data;
+
+  } catch (e) {
+    console.log("ERROR:", e.message);
+    return [];
+  }
+}
 
     // 🔥 ใช้ regex ดึงโค้ด (โคตรชัวร์)
     const matches = data.match(/[A-Z0-9]{6,}/g);
