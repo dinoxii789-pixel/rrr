@@ -69,7 +69,7 @@ async function fetchCodes() {
     // 👉 API จะได้ array ตรงๆ
     return data;
 
-  } catch (e) {
+   catch (e) {
     console.log("ERROR:", e.message);
     return [];
   }
