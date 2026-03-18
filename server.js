@@ -1,8 +1,9 @@
 const express = require("express");
 const cors = require("cors");
+const axios = require("axios");
+const cheerio = require("cheerio");
 const http = require("http");
 const { Server } = require("socket.io");
-const { chromium } = require("playwright");
 const fetch = require("node-fetch");
 
 const app = express();
@@ -13,14 +14,14 @@ app.use(cors());
 app.use(express.json());
 
 let lastCode = null;
-let userTokens = []; // 🔥 เก็บ token
+let userTokens = [];
 
-// 📲 รับ token จาก frontend
+// 📲 รับ token
 app.post("/save-token", (req, res) => {
   const token = req.body.token;
   if (token && !userTokens.includes(token)) {
     userTokens.push(token);
-    console.log("📲 New token:", token);
+    console.log("📲 Token:", token);
   }
   res.sendStatus(200);
 });
@@ -45,39 +46,46 @@ async function sendPush(code) {
   }
 }
 
-async function startScraper() {
-  const browser = await chromium.launch({ headless: true });
-  const page = await browser.newPage();
+// ⚡ ดึงโค้ดแบบเบา
+async function fetchCodes() {
+  try {
+    const { data } = await axios.get("https://rov-crowdsourcing.pages.dev/app/codes");
 
-  await page.goto("https://rov-crowdsourcing.pages.dev/app/codes");
+    const $ = cheerio.load(data);
 
-  setInterval(async () => {
-    try {
-      await page.reload();
+    let codes = [];
 
-      const codes = await page.evaluate(() => {
-        return Array.from(document.querySelectorAll("h3"))
-          .map(el => el.innerText.trim())
-          .filter(x => /^[A-Z0-9]{6,}$/.test(x));
-      });
-
-      const latest = codes[0];
-
-      if (latest && latest !== lastCode) {
-        lastCode = latest;
-
-        console.log("🔥 NEW:", latest);
-
-        io.emit("newCode", latest);
-        sendPush(latest); // 🔥 ยิงมือถือ
+    $("h3").each((i, el) => {
+      const text = $(el).text().trim();
+      if (/^[A-Z0-9]{6,}$/.test(text)) {
+        codes.push(text);
       }
+    });
 
-    } catch (e) {
-      console.log(e);
-    }
-  }, 3000);
+    return [...new Set(codes)];
+
+  } catch (e) {
+    console.log("ERROR:", e.message);
+    return [];
+  }
 }
 
+// 🔁 loop
+setInterval(async () => {
+  const codes = await fetchCodes();
+  const latest = codes[0];
+
+  if (latest && latest !== lastCode) {
+    lastCode = latest;
+
+    console.log("🔥 NEW:", latest);
+
+    io.emit("newCode", latest);
+    sendPush(latest);
+  }
+}, 3000);
+
+// API
 app.get("/codes", (req, res) => {
   res.json(lastCode ? [lastCode] : []);
 });
@@ -85,6 +93,5 @@ app.get("/codes", (req, res) => {
 const PORT = process.env.PORT || 3000;
 
 server.listen(PORT, () => {
-  console.log("🔥 running", PORT);
-  startScraper();
+  console.log("🔥 running on", PORT);
 });
